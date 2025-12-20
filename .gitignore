@@ -1,0 +1,106 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Environment variables (IMPORTANT - contains passwords!)
+.env
+.env.local
+.env.development
+.env.production
+
+# Build output
+dist/
+build/
+*.js.map
+
+# TypeScript cache
+*.tsbuildinfo# --- Backend Ignored Files ---
+
+# Dependencies
+backend/node_modules/
+node_modules/
+
+# Environment variables (CRITICAL!)
+backend/.env
+.env
+.env.local
+.env.development
+.env.production
+
+# Build output
+backend/dist/
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Playwright
+backend/.playwright/
+backend/playwright-report/
+backend/test-results/
+
+# Database & Redis
+*.sqlite
+*.db
+dump.rdb
+
+# Temporary
+tmp/
+temp/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+*.log
+
+# Testing
+coverage/
+.nyc_output/
+
+# Playwright
+.playwright/
+playwright-report/
+test-results/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Database files (if using SQLite locally)
+*.sqlite
+*.db
+
+# Redis dump
+dump.rdb
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
