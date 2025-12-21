@@ -9,6 +9,7 @@ import { BanLog } from './database/entities/ban-log.entity';
 import { YoutubeModule } from './scrapers/youtube/youtube.module';
 import { TestController } from './test.controller';
 import { TwitterModule } from './scrapers/twitter/twitter.module';
+import { TiktokModule } from './scrapers/tiktok/tiktok.module';
 
 @Module({
   imports: [
@@ -35,8 +36,8 @@ import { TwitterModule } from './scrapers/twitter/twitter.module';
 
     // 3. Feature Modules
     YoutubeModule,
-
     TwitterModule,
+    TiktokModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],

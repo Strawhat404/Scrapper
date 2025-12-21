@@ -1,0 +1,9 @@
+{
+	"id": "VFt3oQG4UUPU2OY",
+	"json": "{\"id\":\"VFt3oQG4UUPU2OY\",\"url\":\"https://nitter.net/search?f=tweets&q=NestJS\",\"loadedUrl\":\"https://nitter.net/search?f=tweets&q=NestJS\",\"uniqueKey\":\"https://nitter.net/search?f=tweets&q=NestJS\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"state\":4}},\"handledAt\":\"2025-12-21T09:51:42.423Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://nitter.net/search?f=tweets&q=NestJS",
+	"url": "https://nitter.net/search?f=tweets&q=NestJS"
+}
