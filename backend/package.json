@@ -34,7 +34,8 @@
     "playwright": "^1.57.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "typeorm": "^0.3.28"
+    "typeorm": "^0.3.28",
+    "youtube-sr": "^4.3.12"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
