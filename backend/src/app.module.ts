@@ -7,6 +7,8 @@ import { ScrapedPost } from './database/entities/scraped-post.entity';
 import { ScrapingJob } from './database/entities/scraping-job.entity';
 import { BanLog } from './database/entities/ban-log.entity';
 import { YoutubeModule } from './scrapers/youtube/youtube.module';
+import { TestController } from './test.controller';
+import { TwitterModule } from './scrapers/twitter/twitter.module';
 
 @Module({
   imports: [
@@ -33,8 +35,10 @@ import { YoutubeModule } from './scrapers/youtube/youtube.module';
 
     // 3. Feature Modules
     YoutubeModule,
+
+    TwitterModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, TestController],
   providers: [AppService],
 })
 export class AppModule { }
