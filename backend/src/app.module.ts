@@ -10,6 +10,7 @@ import { YoutubeModule } from './scrapers/youtube/youtube.module';
 import { TestController } from './test.controller';
 import { TwitterModule } from './scrapers/twitter/twitter.module';
 import { TiktokModule } from './scrapers/tiktok/tiktok.module';
+import { InstagramModule } from './scrapers/instagram/instagram.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { TiktokModule } from './scrapers/tiktok/tiktok.module';
     YoutubeModule,
     TwitterModule,
     TiktokModule,
+    InstagramModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],

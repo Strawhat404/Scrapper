@@ -36,6 +36,7 @@
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "tiktok-signature": "^3.0.0",
     "typeorm": "^0.3.28",
     "youtube-sr": "^4.3.12"
   },
