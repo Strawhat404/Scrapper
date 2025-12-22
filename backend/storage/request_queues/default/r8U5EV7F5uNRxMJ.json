@@ -1,0 +1,9 @@
+{
+	"id": "r8U5EV7F5uNRxMJ",
+	"json": "{\"id\":\"r8U5EV7F5uNRxMJ\",\"url\":\"https://nitter.cz/search?f=tweets&q=man\",\"loadedUrl\":\"https://nitter.tiekoetter.com/search?f=tweets&q=man\",\"uniqueKey\":\"https://nitter.cz/search?f=tweets&q=man\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"state\":4}},\"handledAt\":\"2025-12-22T11:45:10.672Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://nitter.cz/search?f=tweets&q=man",
+	"url": "https://nitter.cz/search?f=tweets&q=man"
+}

@@ -1,8 +1,11 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { YoutubeService } from './scrapers/youtube/youtube.service';
 import { TwitterService } from './scrapers/twitter/twitter.service';
 import { TiktokService } from './scrapers/tiktok/tiktok.service';
 import { InstagramService } from './scrapers/instagram/instagram.service';
+import { ScrapedPost } from './database/entities/scraped-post.entity';
 
 @Controller('test')
 export class TestController {
@@ -11,6 +14,8 @@ export class TestController {
         private readonly twitterService: TwitterService,
         private readonly tiktokService: TiktokService,
         private readonly instagramService: InstagramService,
+        @InjectRepository(ScrapedPost)
+        private readonly scrapedPostRepository: Repository<ScrapedPost>,
     ) { }
 
     @Get('youtube')
@@ -63,5 +68,51 @@ export class TestController {
         }
         const urlArray = urls.split(',').map(u => u.trim());
         return await this.instagramService.scrapeMultiplePosts(urlArray);
+    }
+
+    // NEW ENDPOINT: Get all scraped posts from database
+    @Get('posts')
+    async getAllPosts(
+        @Query('limit') limit?: string,
+        @Query('platform') platform?: string,
+    ) {
+        const queryBuilder = this.scrapedPostRepository
+            .createQueryBuilder('post')
+            .orderBy('post.createdAt', 'DESC');
+
+        // Filter by platform if provided
+        if (platform) {
+            queryBuilder.where('LOWER(post.platform::text) = LOWER(:platform)', { platform });
+
+        }
+
+        // Limit results (default 50)
+        const limitNum = limit ? parseInt(limit) : 50;
+        queryBuilder.limit(limitNum);
+
+        const posts = await queryBuilder.getMany();
+        
+        return {
+            total: posts.length,
+            posts: posts,
+        };
+    }
+
+    // NEW ENDPOINT: Get statistics
+    @Get('stats')
+    async getStats() {
+        const total = await this.scrapedPostRepository.count();
+        
+        const byPlatform = await this.scrapedPostRepository
+            .createQueryBuilder('post')
+            .select('post.platform', 'platform')
+            .addSelect('COUNT(*)', 'count')
+            .groupBy('post.platform')
+            .getRawMany();
+
+        return {
+            totalPosts: total,
+            byPlatform: byPlatform,
+        };
     }
 }

@@ -3,40 +3,44 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ScrapedPost } from './database/entities/scraped-post.entity';
-import { ScrapingJob } from './database/entities/scraping-job.entity';
-import { BanLog } from './database/entities/ban-log.entity';
-import { YoutubeModule } from './scrapers/youtube/youtube.module';
 import { TestController } from './test.controller';
+import { YoutubeModule } from './scrapers/youtube/youtube.module';
 import { TwitterModule } from './scrapers/twitter/twitter.module';
 import { TiktokModule } from './scrapers/tiktok/tiktok.module';
 import { InstagramModule } from './scrapers/instagram/instagram.module';
 import { FacebookModule } from './scrapers/facebook/facebook.module';
+import { ScrapedPost } from './database/entities/scraped-post.entity';
+import { ScrapingJob } from './database/entities/scraping-job.entity';
+import { BanLog } from './database/entities/ban-log.entity';
 
 @Module({
   imports: [
-    // 1. Load .env file
+    // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '.env',
     }),
 
-    // 2. Connect to Database
+    // Database
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
-        host: configService.get<string>('DB_HOST'),
-        port: configService.get<number>('DB_PORT'),
-        username: configService.get<string>('DB_USERNAME'),
-        password: configService.get<string>('DB_PASSWORD'),
-        database: configService.get<string>('DB_DATABASE'),
+        host: configService.get('DB_HOST'),
+        port: configService.get('DB_PORT'),
+        username: configService.get('DB_USERNAME'),
+        password: configService.get('DB_PASSWORD'),
+        database: configService.get('DB_DATABASE'),
         entities: [ScrapedPost, ScrapingJob, BanLog],
-        synchronize: true, // Dev only
+        synchronize: true, // Set to false in production
       }),
     }),
 
-    // 3. Feature Modules
+    // ADD THIS LINE - Makes ScrapedPost available to TestController
+    TypeOrmModule.forFeature([ScrapedPost]),
+
+    // Scraper modules
     YoutubeModule,
     TwitterModule,
     TiktokModule,
@@ -46,4 +50,4 @@ import { FacebookModule } from './scrapers/facebook/facebook.module';
   controllers: [AppController, TestController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

@@ -104,3 +104,6 @@ logs/
 npm-debug.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# Frontend Repo (Separate)
+social-pulse-dashboard/
