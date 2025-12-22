@@ -199,35 +199,51 @@ export class InstagramService {
      * This is useful if you already have a list of post URLs
      */
     async scrapeMultiplePosts(postUrls: string[]): Promise<ScrapedPost[]> {
-        const scrapedPosts: ScrapedPost[] = [];
+    this.logger.log(`📥 Starting to scrape ${postUrls.length} posts...`);
+    const scrapedPosts: ScrapedPost[] = [];
 
-        for (const url of postUrls) {
-            const post = await this.scrapePost(url);
-            if (post) {
-                scrapedPosts.push(post);
-            }
-
-            // Rate limiting
-            await this.sleep(this.getRandomDelay());
+    for (let i = 0; i < postUrls.length; i++) {
+        this.logger.log(`[${i + 1}/${postUrls.length}] Processing: ${postUrls[i]}`);
+        
+        const post = await this.scrapePost(postUrls[i]);
+        if (post) {
+            scrapedPosts.push(post);
+            this.logger.log(`✅ Successfully scraped post ${i + 1}`);
+        } else {
+            this.logger.warn(`⚠️  Failed to scrape post ${i + 1}`);
         }
 
-        this.logger.log(`✅ Successfully scraped ${scrapedPosts.length} out of ${postUrls.length} posts`);
-        return scrapedPosts;
+        // Rate limiting - only wait if there are more posts to scrape
+        if (i < postUrls.length - 1) {
+            const delay = this.getRandomDelay();
+            this.logger.log(`⏳ Waiting ${delay}ms before next post...`);
+            await this.sleep(delay);
+        }
     }
 
-    /**
-     * Get random delay from config (anti-ban measure)
-     */
-    private getRandomDelay(): number {
-        const min = this.configService.get<number>('SCRAPING_DELAY_MIN') || 3000;
-        const max = this.configService.get<number>('SCRAPING_DELAY_MAX') || 8000;
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
+    this.logger.log(`✅ Finished! Successfully scraped ${scrapedPosts.length} out of ${postUrls.length} posts`);
+    return scrapedPosts;
+}
 
     /**
-     * Sleep utility
-     */
-    private sleep(ms: number): Promise<void> {
-        return new Promise((resolve) => setTimeout(resolve, ms));
-    }
+ * Get random delay from config (anti-ban measure)
+ */
+private getRandomDelay(): number {
+    // Parse as integers to ensure they're numbers, not strings
+    const min = parseInt(this.configService.get<string>('SCRAPING_DELAY_MIN') || '2000', 10);
+    const max = parseInt(this.configService.get<string>('SCRAPING_DELAY_MAX') || '5000', 10);
+    
+    // Log the values to debug
+    this.logger.debug(`Delay range: ${min}ms - ${max}ms`);
+    
+    const delay = Math.floor(Math.random() * (max - min + 1)) + min;
+    return delay;
+}
+/**
+ * Sleep utility
+ */
+private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 }

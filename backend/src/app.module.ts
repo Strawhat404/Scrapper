@@ -11,6 +11,7 @@ import { TestController } from './test.controller';
 import { TwitterModule } from './scrapers/twitter/twitter.module';
 import { TiktokModule } from './scrapers/tiktok/tiktok.module';
 import { InstagramModule } from './scrapers/instagram/instagram.module';
+import { FacebookModule } from './scrapers/facebook/facebook.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { InstagramModule } from './scrapers/instagram/instagram.module';
     TwitterModule,
     TiktokModule,
     InstagramModule,
+    FacebookModule,
   ],
   controllers: [AppController, TestController],
   providers: [AppService],
