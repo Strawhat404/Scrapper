@@ -18,7 +18,7 @@
 
 </div>
 
-## 📋 Table of Contents
+##  Table of Contents
 
 - [Overview](#-overview)
 - [Key Features](#-key-features)
@@ -37,31 +37,31 @@
 
 ---
 
-## 🎯 Overview
+##  Overview
 
 **Social Pulse** is an enterprise-grade intelligence platform designed for organizations requiring real-time monitoring of global media landscapes, particularly for conflict analysis, crisis management, and strategic intelligence gathering.
 
 ### **Core Capabilities**
 
-🔍 **Multi-Platform Media Collection**
+  **Multi-Platform Media Collection**
 - Automated scraping from 6+ social media platforms (YouTube, Twitter, TikTok, Instagram, Facebook, LinkedIn)
 - News outlet aggregation from 100+ global sources
 - Blog and official statement monitoring
 - RSS feed integration
 
-📊 **Advanced Analytics**
+  **Advanced Analytics**
 - Real-time trend detection and frequency analysis
 - Sentiment analysis with conflict-specific models
 - Topic clustering and keyword tracking
 - Risk scoring and anomaly detection
 
-🗺️ **Geospatial Intelligence**
+  **Geospatial Intelligence**
 - Named Entity Recognition (NER) for location extraction
 - Automated geocoding and coordinate mapping
 - Interactive heatmap visualization
 - Timeline-based geographic analysis
 
-🛡️ **Enterprise-Grade Anti-Detection**
+  **Enterprise-Grade Anti-Detection**
 - Residential proxy rotation (Bright Data integration)
 - Automated CAPTCHA solving
 - Browser fingerprint randomization
@@ -70,7 +70,7 @@
 
 ---
 
-## ✨ Key Features
+##   Key Features
 
 ### **1. Intelligent Data Collection**
 
@@ -97,19 +97,19 @@ Our scrapers employ military-grade stealth techniques:
 ### **3. Conflict Monitoring & Risk Analysis**
 
 ```typescript
-📈 Trend Detection
+   Trend Detection
    ├── Keyword frequency tracking
    ├── Intensity measurement (volume + engagement)
    ├── Spike detection algorithms
    └── Predictive risk scoring
 
-💭 Sentiment Analysis
+   Sentiment Analysis
    ├── Multi-language support
    ├── Conflict-specific models
    ├── Entity-level sentiment
    └── Temporal sentiment tracking
 
-🗺️ Geospatial Mapping
+   Geospatial Mapping
    ├── Location extraction (NER)
    ├── Geocoding (Mapbox/Google)
    ├── Heatmap visualization
@@ -126,7 +126,7 @@ Our scrapers employ military-grade stealth techniques:
 
 ---
 
-## 🏗️ Architecture
+##   Architecture
 
 ### **System Overview**
 
@@ -209,7 +209,7 @@ User Request → API Controller → Scraper Service
 
 ---
 
-## 🛠️ Technology Stack
+##   Technology Stack
 
 ### **Backend**
 - **Framework**: NestJS 11.0 (Node.js)
@@ -240,7 +240,7 @@ User Request → API Controller → Scraper Service
 
 ---
 
-## 📦 Installation
+##   Installation
 
 ### **Prerequisites**
 
@@ -312,7 +312,7 @@ open http://localhost:5173
 
 ---
 
-## ⚙️ Configuration
+##   Configuration
 
 ### **Backend Environment Variables**
 
@@ -375,7 +375,7 @@ VITE_ENABLE_ANALYTICS=true
 
 ---
 
-## 🚀 Usage
+##   Usage
 
 ### **Starting the Application**
 
@@ -438,7 +438,7 @@ curl "http://localhost:3000/test/stats"
 
 ---
 
-## 📚 API Reference
+##   API Reference
 
 ### **Scraping Endpoints**
 
@@ -510,7 +510,7 @@ GET /test/stats
 
 ---
 
-## 🛡️ Anti-Detection System
+##   Anti-Detection System
 
 ### **Multi-Layer Protection**
 
@@ -518,52 +518,52 @@ Our anti-detection system employs a sophisticated multi-layer approach:
 
 #### **Layer 1: Network Anonymization**
 ```typescript
-✅ Residential proxy rotation (195+ countries)
-✅ Automatic IP rotation per request
-✅ Geographic targeting
-✅ ISP diversity
-✅ Connection pooling
+  Residential proxy rotation (195+ countries)
+  Automatic IP rotation per request
+  Geographic targeting
+  ISP diversity
+  Connection pooling
 ```
 
 #### **Layer 2: Browser Fingerprinting**
 ```typescript
-✅ Randomized user agents (10,000+ variations)
-✅ Dynamic viewport sizes
-✅ WebGL fingerprint randomization
-✅ Canvas fingerprint spoofing
-✅ Audio context randomization
-✅ Font enumeration variation
-✅ Plugin detection evasion
+  Randomized user agents (10,000+ variations)
+  Dynamic viewport sizes
+  WebGL fingerprint randomization
+  Canvas fingerprint spoofing
+  Audio context randomization
+  Font enumeration variation
+  Plugin detection evasion
 ```
 
 #### **Layer 3: Behavioral Simulation**
 ```typescript
-✅ Human-like mouse movements
-✅ Natural scrolling patterns
-✅ Random page interactions
-✅ Realistic timing delays
-✅ Session warmup sequences
-✅ Cookie persistence
+  Human-like mouse movements
+  Natural scrolling patterns
+  Random page interactions
+  Realistic timing delays
+  Session warmup sequences
+  Cookie persistence
 ```
 
 #### **Layer 4: Request Patterns**
 ```typescript
-✅ Exponential backoff with jitter
-✅ Token bucket rate limiting
-✅ Normal distribution delays
-✅ Request header randomization
-✅ Referrer management
-✅ Cache control
+  Exponential backoff with jitter
+  Token bucket rate limiting
+  Normal distribution delays
+  Request header randomization
+  Referrer management
+  Cache control
 ```
 
 #### **Layer 5: CAPTCHA Handling**
 ```typescript
-✅ Automatic detection
-✅ Multi-service solving (2Captcha, CapSolver)
-✅ reCAPTCHA v2/v3 support
-✅ hCaptcha support
-✅ FunCaptcha support
-✅ Fallback mechanisms
+  Automatic detection
+  Multi-service solving (2Captcha, CapSolver)
+  reCAPTCHA v2/v3 support
+  Captcha support
+  FunCaptcha support
+  Fallback mechanisms
 ```
 
 ### **Success Metrics**
@@ -578,7 +578,7 @@ Detection Rate: < 1%
 
 ---
 
-## 🚢 Deployment
+##   Deployment
 
 ### **Docker Deployment**
 
@@ -625,7 +625,7 @@ NODE_ENV=production
 
 ---
 
-## ⚡ Performance
+##   Performance
 
 ### **Benchmarks**
 
@@ -650,21 +650,21 @@ CPU Usage: ~30% per scraper
 
 ---
 
-## 🔒 Security
+##   Security
 
 ### **Security Measures**
 
 ```typescript
-✅ Environment variable encryption
-✅ API key rotation
-✅ Rate limiting per IP
-✅ SQL injection prevention (TypeORM)
-✅ XSS protection
-✅ CSRF tokens
-✅ HTTPS enforcement
-✅ Secure cookie handling
-✅ Input validation and sanitization
-✅ Error message sanitization
+  Environment variable encryption
+  API key rotation
+  Rate limiting per IP
+  SQL injection prevention (TypeORM)
+  XSS protection
+  CSRF tokens
+  HTTPS enforcement
+  Secure cookie handling
+  Input validation and sanitization
+  Error message sanitization
 ```
 
 ### **Data Privacy**
@@ -677,7 +677,7 @@ CPU Usage: ~30% per scraper
 
 ---
 
-## 📊 Database Schema
+##   Database Schema
 
 ### **Core Entities**
 
@@ -734,7 +734,7 @@ BanLog
 
 ---
 
-## 🧪 Testing
+##   Testing
 
 ```bash
 # Run all tests
@@ -761,7 +761,7 @@ Lines        : 88.7%
 
 ---
 
-## 📈 Monitoring & Logging
+##   Monitoring & Logging
 
 ### **Logging Levels**
 
@@ -783,7 +783,7 @@ VERBOSE → Request/response details
 
 ---
 
-## 🤝 Contributing
+##   Contributing
 
 We welcome contributions! Please follow these guidelines:
 
@@ -803,7 +803,7 @@ We welcome contributions! Please follow these guidelines:
 
 ---
 
-## 📝 License
+##  License
 
 **Proprietary License** - All rights reserved.
 
@@ -811,11 +811,9 @@ This software is proprietary and confidential. Unauthorized copying, distributio
 
 ---
 
-## 👥 Team
+##  Team
 
-**Lead Developer**: [Your Name]  
-**Project Manager**: [PM Name]  
-**Client**: [Client Organization]
+**Lead Developer**: Yoseph Tesfaye
 
 ---
 
@@ -823,24 +821,16 @@ This software is proprietary and confidential. Unauthorized copying, distributio
 
 For technical support or inquiries:
 
-- **Email**: support@socialpulse.io
-- **Documentation**: https://docs.socialpulse.io
-- **Issue Tracker**: https://github.com/your-org/social-pulse/issues
+- **Email**: yosephtesfaye27@gmail.com
+
 
 ---
 
-## 🙏 Acknowledgments
 
-- **NestJS Team** - Excellent framework
-- **Playwright Team** - Powerful automation
-- **Bright Data** - Reliable proxy infrastructure
-- **Open Source Community** - Countless libraries and tools
-
----
 
 <div align="center">
 
-**Built with ❤️ for Intelligence Professionals**
+**Built with ❤️ By Yoseph Tesfaye**
 
 *Empowering organizations with real-time media intelligence*
 
