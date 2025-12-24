@@ -16,3 +16,4 @@ describe('FacebookService', () => {
     expect(service).toBeDefined();
   });
 
+});
