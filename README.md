@@ -50,16 +50,14 @@
 - RSS feed integration
 
 **Advanced Analytics**
-- Real-time trend detection and frequency analysis
-- Sentiment analysis with conflict-specific models
-- Topic clustering and keyword tracking
+- Real-time trend detection and frequency analysis (to be implemented)
+- Sentiment analysis with conflict-specific models(to be implemented)
+- Topic clustering and keyword tracking(to be implemented)
 - Risk scoring and anomaly detection
 
 **Geospatial Intelligence**
 - Named Entity Recognition (NER) for location extraction
-- Automated geocoding and coordinate mapping
-- Interactive heatmap visualization
-- Timeline-based geographic analysis
+
 
 **Enterprise-Grade Anti-Detection**
 - Residential proxy rotation (Bright Data integration)
