@@ -49,19 +49,19 @@
 - Blog and official statement monitoring
 - RSS feed integration
 
-  **Advanced Analytics**
+**Advanced Analytics**
 - Real-time trend detection and frequency analysis
 - Sentiment analysis with conflict-specific models
 - Topic clustering and keyword tracking
 - Risk scoring and anomaly detection
 
-  **Geospatial Intelligence**
+**Geospatial Intelligence**
 - Named Entity Recognition (NER) for location extraction
 - Automated geocoding and coordinate mapping
 - Interactive heatmap visualization
 - Timeline-based geographic analysis
 
-  **Enterprise-Grade Anti-Detection**
+**Enterprise-Grade Anti-Detection**
 - Residential proxy rotation (Bright Data integration)
 - Automated CAPTCHA solving
 - Browser fingerprint randomization
@@ -75,12 +75,12 @@
 ### **1. Intelligent Data Collection**
 
 ```typescript
-✅ Multi-platform scraping with unified API
-✅ Rate limiting with exponential backoff
-✅ Automatic retry logic and error recovery
-✅ Distributed scraping architecture
-✅ Real-time data streaming
-✅ Duplicate detection and deduplication
+   Multi-platform scraping with unified API
+   Rate limiting with exponential backoff
+   Automatic retry logic and error recovery
+   Distributed scraping architecture
+   Real-time data streaming
+   Duplicate detection and deduplication
 ```
 
 ### **2. Advanced Anti-Detection System**
