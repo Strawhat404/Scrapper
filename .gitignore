@@ -59,7 +59,11 @@ backend/test-results/
 # Database & Redis
 *.sqlite
 *.db
+*.db
 dump.rdb
+
+# Crawler Storage
+backend/storage/
 
 # Temporary
 tmp/
