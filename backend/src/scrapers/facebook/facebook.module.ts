@@ -13,3 +13,4 @@ import { ScrapedPost } from '../../database/entities/scraped-post.entity';
   exports: [FacebookService],
 })
 
+export class FacebookModule {}

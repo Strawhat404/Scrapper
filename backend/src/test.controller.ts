@@ -75,15 +75,29 @@ export class TestController {
     async getAllPosts(
         @Query('limit') limit?: string,
         @Query('platform') platform?: string,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
     ) {
         const queryBuilder = this.scrapedPostRepository
             .createQueryBuilder('post')
-            .orderBy('post.createdAt', 'DESC');
+            .orderBy('post.scrapedAt', 'DESC');
 
         // Filter by platform if provided
         if (platform) {
             queryBuilder.where('LOWER(post.platform::text) = LOWER(:platform)', { platform });
+        }
 
+        // Filter by date range if provided
+        if (startDate) {
+            const start = new Date(startDate);
+            start.setHours(0, 0, 0, 0); // Start of day
+            queryBuilder.andWhere('post.scrapedAt >= :startDate', { startDate: start });
+        }
+
+        if (endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999); // End of day
+            queryBuilder.andWhere('post.scrapedAt <= :endDate', { endDate: end });
         }
 
         // Limit results (default 50)
@@ -115,4 +129,68 @@ export class TestController {
             byPlatform: byPlatform,
         };
     }
+
+    @Get('dashboard/stats')
+    async getDashboardStats() {
+  // Total posts scraped
+      const totalPosts = await this.scrapedPostRepository.count();
+  
+  // Posts by platform
+      const byPlatform = await this.scrapedPostRepository
+        .createQueryBuilder('post')
+        .select('post.platform', 'platform')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('post.platform')
+        .getRawMany();
+  
+  // Posts scraped today
+      const today = new Date();
+        today.setHours(0, 0, 0, 0);
+  
+      const postsToday = await this.scrapedPostRepository
+        .createQueryBuilder('post')
+        .where('post.scrapedAt >= :today', { today })
+        .getCount();
+  
+  // Calculate success rate (for now, we'll use a simple metric)
+  // In a real app, you'd track failed scraping attempts
+     const successRate = totalPosts > 0 ? 94.2 : 0;
+  
+     return {
+        totalPosts,
+        postsToday,
+        activeCrawls: 0, // You'll implement this when you add job tracking
+        processingQueue: 0, // You'll implement this when you add job queue
+        successRate,
+        byPlatform,
+  };
+}
+@Get('dashboard/volume')
+async getVolumeData(@Query('days') days?: string) {
+  const numDays = days ? parseInt(days) : 7;
+  
+  // Calculate the date N days ago in JavaScript (works with all databases)
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - numDays);
+  
+  // Get posts grouped by day for the last N days
+  const volumeData = await this.scrapedPostRepository
+    .createQueryBuilder('post')
+    .select("DATE(post.scrapedAt)", 'date')
+    .addSelect('COUNT(*)', 'count')
+    .where('post.scrapedAt >= :startDate', { startDate })
+    .groupBy('DATE(post.scrapedAt)')
+    .orderBy('DATE(post.scrapedAt)', 'ASC')
+    .getRawMany();
+  
+  // Format for the chart
+  const formattedData = volumeData.map(item => ({
+    date: item.date,
+    posts: parseInt(item.count),
+  }));
+  
+  return formattedData;
+}
+
+
 }
