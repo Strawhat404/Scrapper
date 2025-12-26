@@ -9,6 +9,7 @@ import { TwitterModule } from './scrapers/twitter/twitter.module';
 import { TiktokModule } from './scrapers/tiktok/tiktok.module';
 import { InstagramModule } from './scrapers/instagram/instagram.module';
 import { FacebookModule } from './scrapers/facebook/facebook.module';
+import { SharedBrowserModule } from './scrapers/shared-browser.module';
 import { ScrapedPost } from './database/entities/scraped-post.entity';
 import { ScrapingJob } from './database/entities/scraping-job.entity';
 import { BanLog } from './database/entities/ban-log.entity';
@@ -39,6 +40,9 @@ import { BanLog } from './database/entities/ban-log.entity';
 
     // ADD THIS LINE - Makes ScrapedPost available to TestController
     TypeOrmModule.forFeature([ScrapedPost]),
+
+    // Shared browser (global)
+    SharedBrowserModule,
 
     // Scraper modules
     YoutubeModule,

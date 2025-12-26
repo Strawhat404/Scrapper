@@ -2,13 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { chromium } from 'playwright-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { ScrapedPost, Platform, MediaType } from '../../database/entities/scraped-post.entity';
-
-// Enable stealth mode
-chromium.use(StealthPlugin());
-
+import { SharedBrowserService } from '../shared-browser.service';
 
 @Injectable()
 export class TiktokService {
@@ -18,6 +13,7 @@ export class TiktokService {
         @InjectRepository(ScrapedPost)
         private readonly scrapedPostRepository: Repository<ScrapedPost>,
         private readonly configService: ConfigService,
+        private readonly sharedBrowser: SharedBrowserService,
     ) { }
 
     async scrapeByHashtag(hashtag: string, maxResults: number = 10, headless: boolean = false): Promise<ScrapedPost[]> {
@@ -27,30 +23,17 @@ export class TiktokService {
         const tag = hashtag.replace('#', '');
         const url = `https://www.tiktok.com/tag/${tag}`;
 
-        this.logger.log(`🎵 Launching ${headless ? 'Headless' : 'Visible'} Browser for: #${tag}`);
-
-        let browser: any = null;
-        try {
-            // Launch a REAL browser to handle all the signing/cookies for us
-            browser = await chromium.launch({
-                headless: headless, // Now configurable!
-                args: ['--disable-blink-features=AutomationControlled']
-            });
-            this.logger.log(`✅ Browser launched successfully`);
-        } catch (launchError) {
-            this.logger.error(`❌ Failed to launch browser: ${launchError.message}`);
-            throw launchError;
-        }
-
-        const context = await browser.newContext({
-            userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-        });
-        this.logger.log(`✅ Browser context created`);
-
-        const page = await context.newPage();
-        this.logger.log(`✅ New page created`);
+        let context: any = null;
+        let page: any = null;
 
         try {
+            // Use shared browser - creates a new tab instead of new window
+            this.logger.log(`🎵 Opening TikTok in new tab for: #${tag}`);
+            
+            context = await this.sharedBrowser.createContext();
+            page = await context.newPage();
+            this.logger.log(`✅ New tab created`);
+
             let capturedData: any = null;
 
             // 1. Listen for the exact API response we need
@@ -139,15 +122,15 @@ export class TiktokService {
             this.logger.error(`   - TikTok changed their API structure`);
             return [];
         } finally {
-            // Always close the browser if it was opened
-            if (browser) {
-                this.logger.log('🧹 Cleaning up browser...');
+            // Close the tab (context) but keep the browser open
+            if (context) {
+                this.logger.log('🧹 Closing TikTok tab...');
                 try {
                     await new Promise(r => setTimeout(r, 2000)); // Give it time to finish
-                    await browser.close();
-                    this.logger.log('✅ Browser closed');
+                    await context.close();
+                    this.logger.log('✅ TikTok tab closed');
                 } catch (closeError) {
-                    this.logger.error(`⚠️ Error closing browser: ${closeError.message}`);
+                    this.logger.error(`⚠️ Error closing tab: ${closeError.message}`);
                 }
             }
         }

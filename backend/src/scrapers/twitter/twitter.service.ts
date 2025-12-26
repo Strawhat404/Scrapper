@@ -3,12 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { PlaywrightCrawler } from '@crawlee/playwright';
-import { chromium } from 'playwright-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { ScrapedPost, Platform, MediaType } from '../../database/entities/scraped-post.entity';
-
-// Add stealth plugin to Playwright
-chromium.use(StealthPlugin());
+import { SharedBrowserService } from '../shared-browser.service';
 
 @Injectable()
 export class TwitterService {
@@ -18,6 +14,7 @@ export class TwitterService {
         @InjectRepository(ScrapedPost)
         private readonly scrapedPostRepository: Repository<ScrapedPost>,
         private readonly configService: ConfigService,
+        private readonly sharedBrowser: SharedBrowserService,
     ) { }
 
     /**
@@ -40,14 +37,13 @@ export class TwitterService {
         try {
             this.logger.log(`🐦 Searching via Nitter (${baseUrl}) for: "${keyword}"`);
 
+            // Get shared browser instance
+            const browser = await this.sharedBrowser.getBrowser();
+
             const crawler = new PlaywrightCrawler({
                 launchContext: {
-                    launcher: chromium,
-                    launchOptions: {
-                        // Keep headless: true for Nitter as it's much harder to detect
-                        headless: false,
-                        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-                    },
+                    launcher: browser,
+                    useIncognitoPages: true,
                 },
                 maxRequestsPerCrawl: 1,
                 requestHandler: async ({ page }) => {
