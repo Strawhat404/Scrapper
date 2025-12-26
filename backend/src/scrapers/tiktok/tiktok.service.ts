@@ -20,24 +20,35 @@ export class TiktokService {
         private readonly configService: ConfigService,
     ) { }
 
-    async scrapeByHashtag(hashtag: string, maxResults: number = 10): Promise<ScrapedPost[]> {
+    async scrapeByHashtag(hashtag: string, maxResults: number = 10, headless: boolean = false): Promise<ScrapedPost[]> {
+        this.logger.log(`🚀 TikTok scraper called with hashtag: ${hashtag}, maxResults: ${maxResults}, headless: ${headless}`);
+        
         const scrapedPosts: ScrapedPost[] = [];
         const tag = hashtag.replace('#', '');
         const url = `https://www.tiktok.com/tag/${tag}`;
 
-        this.logger.log(`🎵 Launching Secure Browser for: #${tag}`);
+        this.logger.log(`🎵 Launching ${headless ? 'Headless' : 'Visible'} Browser for: #${tag}`);
 
-        // Launch a REAL browser to handle all the signing/cookies for us
-        const browser = await chromium.launch({
-            headless: false,
-            args: ['--disable-blink-features=AutomationControlled']
-        });
+        let browser: any = null;
+        try {
+            // Launch a REAL browser to handle all the signing/cookies for us
+            browser = await chromium.launch({
+                headless: headless, // Now configurable!
+                args: ['--disable-blink-features=AutomationControlled']
+            });
+            this.logger.log(`✅ Browser launched successfully`);
+        } catch (launchError) {
+            this.logger.error(`❌ Failed to launch browser: ${launchError.message}`);
+            throw launchError;
+        }
 
         const context = await browser.newContext({
             userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
         });
+        this.logger.log(`✅ Browser context created`);
 
         const page = await context.newPage();
+        this.logger.log(`✅ New page created`);
 
         try {
             let capturedData: any = null;
@@ -58,17 +69,23 @@ export class TiktokService {
             });
 
             // 2. Open the page
+            this.logger.log(`🌐 Navigating to: ${url}`);
             await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+            this.logger.log(`✅ Page loaded successfully`);
 
-            // 3. Wait for data or Human to solve Captcha
-            this.logger.log('⏳ Waiting for data... Solve Captcha if it appears!');
+            // 3. Wait for data or handle captcha
+            this.logger.log('⏳ Waiting for data...');
 
             let timeoutSeconds = 60;
+
             while (!capturedData && timeoutSeconds > 0) {
-                // Check if captcha is on screen to alert the user
+                // Check if captcha is on screen
                 const isCaptcha = await page.$('.captcha-disable-scroll') || await page.$('#captcha_container');
                 if (isCaptcha) {
-                    this.logger.warn(`🚨 CAPTCHA DETECTED! Use the open browser window to solve it.`);
+                    this.logger.warn(`🚨 CAPTCHA DETECTED! Waiting for manual solve...`);
+                    await new Promise(r => setTimeout(r, 2000));
+                    timeoutSeconds -= 2;
+                    continue;
                 }
 
                 await new Promise(r => setTimeout(r, 1000));
@@ -77,6 +94,7 @@ export class TiktokService {
 
             if (!capturedData) {
                 this.logger.error('❌ Failed to capture data after 60 seconds.');
+                this.logger.warn('💡 Possible reasons: TikTok blocked the request, captcha not solved, or network issue');
                 return [];
             }
 
@@ -103,17 +121,35 @@ export class TiktokService {
             if (scrapedPosts.length > 0) {
                 // Return up to maxResults
                 const results = scrapedPosts.slice(0, maxResults);
-                return await this.scrapedPostRepository.save(results);
+                this.logger.log(`💾 Saving ${results.length} posts to database...`);
+                const saved = await this.scrapedPostRepository.save(results);
+                this.logger.log(`✅ Successfully saved ${saved.length} posts`);
+                return saved;
             }
+            this.logger.warn('⚠️ No posts to save');
             return [];
 
         } catch (error) {
             this.logger.error(`❌ Browser Error: ${error.message}`);
+            this.logger.error(`❌ Stack trace: ${error.stack}`);
+            this.logger.error(`💡 Possible reasons:`);
+            this.logger.error(`   - TikTok blocked the request (try with headless=false)`);
+            this.logger.error(`   - CAPTCHA not solved in time`);
+            this.logger.error(`   - Network connectivity issue`);
+            this.logger.error(`   - TikTok changed their API structure`);
             return [];
         } finally {
-            // Give it a second to finish any DB saves then close
-            await new Promise(r => setTimeout(r, 2000));
-            await browser.close();
+            // Always close the browser if it was opened
+            if (browser) {
+                this.logger.log('🧹 Cleaning up browser...');
+                try {
+                    await new Promise(r => setTimeout(r, 2000)); // Give it time to finish
+                    await browser.close();
+                    this.logger.log('✅ Browser closed');
+                } catch (closeError) {
+                    this.logger.error(`⚠️ Error closing browser: ${closeError.message}`);
+                }
+            }
         }
     }
 

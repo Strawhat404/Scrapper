@@ -31,9 +31,13 @@ export class TestController {
     }
 
     @Get('tiktok')
-    async testTiktok(@Query('q') query: string) {
+    async testTiktok(
+        @Query('q') query: string,
+        @Query('headless') headless?: string,
+    ) {
         if (!query) return { error: 'Please provide query param: ?q=hashtag' };
-        return await this.tiktokService.scrapeByHashtag(query);
+        const isHeadless = headless === 'true';
+        return await this.tiktokService.scrapeByHashtag(query, 10, isHeadless);
     }
 
     @Get('instagram')

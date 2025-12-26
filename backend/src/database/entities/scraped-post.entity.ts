@@ -50,13 +50,13 @@ export class ScrapedPost {
     @Column({ nullable: true })
     thumbnailUrl: string;
 
-    @Column({ type: 'int', default: 0 })
+    @Column({ type: 'bigint', default: 0 })
     likes: number;
 
-    @Column({ type: 'int', default: 0 })
+    @Column({ type: 'bigint', default: 0 })
     views: number;
 
-    @Column({ type: 'int', default: 0 })
+    @Column({ type: 'bigint', default: 0 })
     comments: number;
 
     @Column({ nullable: true })
