@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Delete, Param, HttpStatus, HttpException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { YoutubeService } from './scrapers/youtube/youtube.service';
@@ -117,10 +117,20 @@ export class TestController {
     async getStats() {
         const total = await this.scrapedPostRepository.count();
         
+        // Get today's date at midnight
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
         const byPlatform = await this.scrapedPostRepository
             .createQueryBuilder('post')
             .select('post.platform', 'platform')
-            .addSelect('COUNT(*)', 'count')
+            .addSelect('COUNT(*)', 'totalCount')
+            .addSelect(
+                `COUNT(CASE WHEN post.scrapedAt >= :today THEN 1 END)`,
+                'todayCount'
+            )
+            .addSelect('MAX(post.scrapedAt)', 'lastCrawl')
+            .setParameter('today', today)
             .groupBy('post.platform')
             .getRawMany();
 
@@ -191,6 +201,32 @@ async getVolumeData(@Query('days') days?: string) {
   
   return formattedData;
 }
+
+    // DELETE endpoint: Delete a post by ID
+    @Delete('posts/:id')
+    async deletePost(@Param('id') id: string) {
+        try {
+            console.log('Attempting to delete post with ID:', id);
+            const result = await this.scrapedPostRepository.delete(id);
+            console.log('Delete result:', result);
+            
+            if (result.affected === 0) {
+                throw new HttpException('Post not found', HttpStatus.NOT_FOUND);
+            }
+            
+            return { 
+                success: true, 
+                message: 'Post deleted successfully',
+                deletedId: id
+            };
+        } catch (error) {
+            console.error('Error deleting post:', error);
+            if (error instanceof HttpException) {
+                throw error;
+            }
+            throw new HttpException('Failed to delete post', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 
 
 }
