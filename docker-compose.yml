@@ -1,0 +1,65 @@
+services:
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: social-pulse-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: socialpulse
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: securepassword123
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d socialpulse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Backend API (NestJS)
+  # ============================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: social-pulse-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://admin:securepassword123@postgres:5432/socialpulse
+      PORT: 3000
+      NODE_ENV: production
+    env_file:
+      - ./backend/.env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend/storage:/app/storage
+
+  # ============================================
+  # Frontend (React + Nginx)
+  # ============================================
+  frontend:
+    build:
+      context: ./social-pulse-dashboard
+      dockerfile: Dockerfile
+    container_name: social-pulse-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+# ============================================
+# Volumes (Persistent Data)
+# ============================================
+volumes:
+  postgres_data:
+    driver: local
