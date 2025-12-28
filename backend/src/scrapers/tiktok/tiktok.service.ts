@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { ScrapedPost, Platform, MediaType } from '../../database/entities/scraped-post.entity';
 import { SharedBrowserService } from '../shared-browser.service';
+import { BrightDataService } from '../brightdata.service';
+import * as cheerio from 'cheerio';
 
 @Injectable()
 export class TiktokService {
@@ -14,7 +16,9 @@ export class TiktokService {
         private readonly scrapedPostRepository: Repository<ScrapedPost>,
         private readonly configService: ConfigService,
         private readonly sharedBrowser: SharedBrowserService,
+        private readonly brightData: BrightDataService,
     ) { }
+
 
     async scrapeByHashtag(hashtag: string, maxResults: number = 10, headless: boolean = false): Promise<ScrapedPost[]> {
         this.logger.log(`🚀 TikTok scraper called with hashtag: ${hashtag}, maxResults: ${maxResults}, headless: ${headless}`);
