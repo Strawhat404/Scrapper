@@ -19,9 +19,8 @@ export class TiktokService {
         private readonly brightData: BrightDataService,
     ) { }
 
-
-    async scrapeByHashtag(hashtag: string, maxResults: number = 10, headless: boolean = false): Promise<ScrapedPost[]> {
-        this.logger.log(`🚀 TikTok scraper called with hashtag: ${hashtag}, maxResults: ${maxResults}, headless: ${headless}`);
+    async scrapeByHashtag(hashtag: string, maxResults: number = 10, useProxy: boolean = true): Promise<ScrapedPost[]> {
+        this.logger.log(`🚀 TikTok scraper called with hashtag: ${hashtag}, maxResults: ${maxResults}, useProxy: ${useProxy}`);
         
         const scrapedPosts: ScrapedPost[] = [];
         const tag = hashtag.replace('#', '');
@@ -31,17 +30,24 @@ export class TiktokService {
         let page: any = null;
 
         try {
-            // Use shared browser - creates a new tab instead of new window
-            this.logger.log(`🎵 Opening TikTok in new tab for: #${tag}`);
+            this.logger.log(`🎵 Opening TikTok with BrightData proxy for: #${tag}`);
             
-            context = await this.sharedBrowser.createContext();
+            // Get browser with proxy configuration
+            const browser = await this.sharedBrowser.getBrowser(true); // Always headless for VPS
+            
+            // Create context with BrightData proxy
+            const proxyConfig = this.brightData.getProxyConfig();
+            context = await browser.newContext({
+                proxy: useProxy ? proxyConfig : undefined,
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            });
+            
             page = await context.newPage();
-            this.logger.log(`✅ New tab created`);
+            this.logger.log(`✅ New tab created with proxy`);
 
             let capturedData: any = null;
 
-            // 1. Listen for the exact API response we need
-            // This captures the raw JSON directly from TikTok's internal calls
+            // Listen for API responses
             page.on('response', async (response) => {
                 const resUrl = response.url();
                 if (resUrl.includes('/api/challenge/item_list') || resUrl.includes('/api/search/item')) {
@@ -55,21 +61,21 @@ export class TiktokService {
                 }
             });
 
-            // 2. Open the page
+            // Navigate to page
             this.logger.log(`🌐 Navigating to: ${url}`);
             await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
             this.logger.log(`✅ Page loaded successfully`);
 
-            // 3. Wait for data or handle captcha
+            // Wait for data
             this.logger.log('⏳ Waiting for data...');
-
             let timeoutSeconds = 60;
 
             while (!capturedData && timeoutSeconds > 0) {
-                // Check if captcha is on screen
+                // Check for CAPTCHA
                 const isCaptcha = await page.$('.captcha-disable-scroll') || await page.$('#captcha_container');
                 if (isCaptcha) {
-                    this.logger.warn(`🚨 CAPTCHA DETECTED! Waiting for manual solve...`);
+                    this.logger.warn(`🚨 CAPTCHA DETECTED! BrightData proxy may not be solving it automatically.`);
+                    this.logger.warn(`💡 You may need to upgrade to BrightData Scraping Browser for automatic CAPTCHA solving.`);
                     await new Promise(r => setTimeout(r, 2000));
                     timeoutSeconds -= 2;
                     continue;
@@ -81,11 +87,10 @@ export class TiktokService {
 
             if (!capturedData) {
                 this.logger.error('❌ Failed to capture data after 60 seconds.');
-                this.logger.warn('💡 Possible reasons: TikTok blocked the request, captcha not solved, or network issue');
                 return [];
             }
 
-            // 4. Parse the Captured JSON
+            // Parse captured data
             const videos = capturedData.itemList || capturedData.item_list || [];
             this.logger.log(`✅ Extracted ${videos.length} videos from intercepted data`);
 
@@ -106,31 +111,25 @@ export class TiktokService {
             }
 
             if (scrapedPosts.length > 0) {
-                // Return up to maxResults
                 const results = scrapedPosts.slice(0, maxResults);
                 this.logger.log(`💾 Saving ${results.length} posts to database...`);
                 const saved = await this.scrapedPostRepository.save(results);
                 this.logger.log(`✅ Successfully saved ${saved.length} posts`);
                 return saved;
             }
+            
             this.logger.warn('⚠️ No posts to save');
             return [];
 
         } catch (error) {
             this.logger.error(`❌ Browser Error: ${error.message}`);
             this.logger.error(`❌ Stack trace: ${error.stack}`);
-            this.logger.error(`💡 Possible reasons:`);
-            this.logger.error(`   - TikTok blocked the request (try with headless=false)`);
-            this.logger.error(`   - CAPTCHA not solved in time`);
-            this.logger.error(`   - Network connectivity issue`);
-            this.logger.error(`   - TikTok changed their API structure`);
             return [];
         } finally {
-            // Close the tab (context) but keep the browser open
             if (context) {
                 this.logger.log('🧹 Closing TikTok tab...');
                 try {
-                    await new Promise(r => setTimeout(r, 2000)); // Give it time to finish
+                    await new Promise(r => setTimeout(r, 2000));
                     await context.close();
                     this.logger.log('✅ TikTok tab closed');
                 } catch (closeError) {
