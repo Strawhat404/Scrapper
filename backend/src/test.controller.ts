@@ -5,6 +5,7 @@ import { YoutubeService } from './scrapers/youtube/youtube.service';
 import { TwitterService } from './scrapers/twitter/twitter.service';
 import { TiktokService } from './scrapers/tiktok/tiktok.service';
 import { InstagramService } from './scrapers/instagram/instagram.service';
+import { FacebookService } from './scrapers/facebook/facebook.service';
 import { ScrapedPost } from './database/entities/scraped-post.entity';
 
 @Controller('test')
@@ -14,6 +15,7 @@ export class TestController {
         private readonly twitterService: TwitterService,
         private readonly tiktokService: TiktokService,
         private readonly instagramService: InstagramService,
+        private readonly facebookService: FacebookService,
         @InjectRepository(ScrapedPost)
         private readonly scrapedPostRepository: Repository<ScrapedPost>,
     ) { }
@@ -72,6 +74,21 @@ export class TestController {
         }
         const urlArray = urls.split(',').map(u => u.trim());
         return await this.instagramService.scrapeMultiplePosts(urlArray);
+    }
+
+    @Get('facebook')
+    async testFacebook(@Query('q') pageName: string) {
+        if (!pageName) {
+            return { 
+                error: 'Please provide q param with page name',
+                examples: {
+                    single_page: '?q=LeBron',
+                    multiple_pages: '?q=LeBron,SamsungIsrael'
+                }
+            };
+        }
+        
+        return await this.facebookService.scrapeByHashtag(pageName);
     }
 
     // NEW ENDPOINT: Get all scraped posts from database
@@ -146,10 +163,33 @@ export class TestController {
 
     @Get('dashboard/stats')
     async getDashboardStats() {
-  // Total posts scraped
+      // Total posts scraped
       const totalPosts = await this.scrapedPostRepository.count();
   
-  // Posts by platform
+      // Posts scraped today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+  
+      const postsToday = await this.scrapedPostRepository
+        .createQueryBuilder('post')
+        .where('post.scrapedAt >= :today', { today })
+        .getCount();
+  
+      // Posts scraped yesterday (for comparison)
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+      
+      const postsYesterday = await this.scrapedPostRepository
+        .createQueryBuilder('post')
+        .where('post.scrapedAt >= :yesterday', { yesterday })
+        .andWhere('post.scrapedAt < :today', { today })
+        .getCount();
+  
+      // Calculate change from yesterday
+      const postsTodayChange = postsToday - postsYesterday;
+  
+      // Posts by platform
       const byPlatform = await this.scrapedPostRepository
         .createQueryBuilder('post')
         .select('post.platform', 'platform')
@@ -157,28 +197,23 @@ export class TestController {
         .groupBy('post.platform')
         .getRawMany();
   
-  // Posts scraped today
-      const today = new Date();
-        today.setHours(0, 0, 0, 0);
+      // Calculate success rate (for now, we'll use a simple metric)
+      // In a real app, you'd track failed scraping attempts
+      const successRate = totalPosts > 0 ? 94.2 : 0;
   
-      const postsToday = await this.scrapedPostRepository
-        .createQueryBuilder('post')
-        .where('post.scrapedAt >= :today', { today })
-        .getCount();
-  
-  // Calculate success rate (for now, we'll use a simple metric)
-  // In a real app, you'd track failed scraping attempts
-     const successRate = totalPosts > 0 ? 94.2 : 0;
-  
-     return {
+      return {
         totalPosts,
         postsToday,
+        postsTodayChange,
         activeCrawls: 0, // You'll implement this when you add job tracking
+        activeCrawlsChange: 0,
         processingQueue: 0, // You'll implement this when you add job queue
+        processingQueueChange: 0,
         successRate,
+        successRateChange: 2.1, // Static for now, can be calculated later
         byPlatform,
-  };
-}
+      };
+    }
 @Get('dashboard/volume')
 async getVolumeData(@Query('days') days?: string) {
   const numDays = days ? parseInt(days) : 7;

@@ -3,247 +3,245 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { ScrapedPost, Platform, MediaType } from '../../database/entities/scraped-post.entity';
+import { BrightDataService } from '../brightdata.service';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 @Injectable()
 export class InstagramService {
     private readonly logger = new Logger(InstagramService.name);
-
-    // Instagram's App ID - this is public and used by their website
-    private readonly X_IG_APP_ID = '936619743392459';
-    
-    // User agent to mimic a real browser
-    private readonly USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    private readonly X_IG_APP_ID = '936619743392459'; // Instagram's public app ID
 
     constructor(
         @InjectRepository(ScrapedPost)
         private readonly scrapedPostRepository: Repository<ScrapedPost>,
         private readonly configService: ConfigService,
-    ) { }
-
-    /**
-     * Extract Instagram shortcode from URL
-     * Example: "https://www.instagram.com/p/CtjoC2BNsB2/" -> "CtjoC2BNsB2"
-     */
-    private extractShortcode(url: string): string | null {
-        const regex = /instagram\.com\/(?:[A-Za-z0-9_.]+\/)?(p|reels|reel)\/([A-Za-z0-9-_]+)/;
-        const match = url.match(regex);
-        return match && match[2] ? match[2] : null;
+        private readonly brightDataService: BrightDataService,
+    ) {
+        this.logger.log(`✅ Instagram Scraper initialized (GraphQL API + Residential Proxy)`);
     }
 
     /**
-     * Scrape a single Instagram post using GraphQL API
-     * This method uses Instagram's internal GraphQL endpoint (no cookie needed!)
+     * Clean username - remove @ symbol if present
      */
-    async scrapePost(postUrl: string): Promise<ScrapedPost | null> {
+    private cleanUsername(username: string): string {
+        return username.replace(/^@/, '').trim();
+    }
+
+    /**
+     * Get random delay for human-like behavior
+     */
+    private getRandomDelay(min: number = 2000, max: number = 5000): number {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    /**
+     * Scrape posts from an Instagram profile using GraphQL API
+     */
+    async scrapeByUsername(username: string, maxPosts: number = 12): Promise<ScrapedPost[]> {
         try {
-            const shortcode = this.extractShortcode(postUrl);
-            if (!shortcode) {
-                this.logger.error(`❌ Invalid Instagram URL: ${postUrl}`);
-                return null;
-            }
+            const cleanedUsername = this.cleanUsername(username);
+            this.logger.log(`🔍 Scraping Instagram profile via GraphQL API: @${cleanedUsername}`);
 
-            this.logger.log(`🔍 Scraping Instagram post: ${shortcode}`);
+            // Use Instagram's internal GraphQL API
+            const apiUrl = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${cleanedUsername}`;
+            
+            // Setup proxy agent
+            const proxyConfig = this.brightDataService.getProxyConfig();
+            // proxyConfig.server already includes protocol and port (e.g., "http://host:port")
+            const serverWithoutProtocol = proxyConfig.server.replace(/^https?:\/\//, '');
+            const proxyUrl = `http://${proxyConfig.username}:${proxyConfig.password}@${serverWithoutProtocol}`;
+            const agent = new HttpsProxyAgent(proxyUrl);
 
-            // Build GraphQL request URL
-            const graphqlUrl = new URL('https://www.instagram.com/api/graphql');
-            graphqlUrl.searchParams.set('variables', JSON.stringify({ shortcode }));
-            graphqlUrl.searchParams.set('doc_id', '10015901848480474');
-            graphqlUrl.searchParams.set('lsd', 'AVqbxe3J_YA');
+            // Mobile User-Agent (iPhone) - lighter security
+            const headers = {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'X-IG-App-ID': this.X_IG_APP_ID,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Referer': 'https://www.instagram.com/',
+                'Origin': 'https://www.instagram.com',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-origin',
+            };
 
-            // Make the request to Instagram's GraphQL API
-            const response = await fetch(graphqlUrl.toString(), {
-                method: 'POST',
-                headers: {
-                    'User-Agent': this.USER_AGENT,
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-IG-App-ID': this.X_IG_APP_ID,
-                    'X-FB-LSD': 'AVqbxe3J_YA',
-                    'X-ASBD-ID': '129477',
-                    'Sec-Fetch-Site': 'same-origin'
-                }
+            this.logger.log(`📤 Fetching: ${apiUrl}`);
+            
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: headers,
+                // @ts-ignore
+                agent: agent,
             });
+
+            this.logger.log(`📥 Response Status: ${response.status}`);
 
             if (!response.ok) {
                 this.logger.error(`❌ Instagram API returned status: ${response.status}`);
-                return null;
-            }
-
-            const json = await response.json();
-            const media = json?.data?.xdt_shortcode_media;
-
-            if (!media) {
-                this.logger.error('❌ No media data found in response');
-                return null;
-            }
-
-            // Create ScrapedPost entity from Instagram data
-            const post = new ScrapedPost();
-            post.platform = Platform.INSTAGRAM;
-            post.postId = media.shortcode;
-            post.authorUsername = media.owner?.username || 'unknown';
-            post.authorName = media.owner?.full_name || 'unknown';
-            post.content = media.edge_media_to_caption?.edges[0]?.node?.text || '';
-            post.postUrl = `https://www.instagram.com/p/${media.shortcode}/`;
-            post.likes = media.edge_media_preview_like?.count || 0;
-            post.comments = media.edge_media_to_comment?.count || 0;
-            post.views = media.video_view_count || media.video_play_count || 0;
-            
-            // Determine media type and URLs
-            if (media.is_video) {
-                post.mediaType = MediaType.VIDEO;
-                post.mediaUrls = media.video_url ? [media.video_url] : [];
-                post.thumbnailUrl = media.thumbnail_src || media.display_url;
-            } else {
-                post.mediaType = MediaType.IMAGE;
-                post.mediaUrls = media.display_url ? [media.display_url] : [];
-                post.thumbnailUrl = media.display_url;
-            }
-
-            // Save to database
-            const savedPost = await this.scrapedPostRepository.save(post);
-            this.logger.log(`✅ Successfully scraped post: ${shortcode}`);
-
-            return savedPost;
-
-        } catch (error) {
-            this.logger.error(`❌ Error scraping Instagram post: ${error.message}`);
-            return null;
-        }
-    }
-
-    /**
-     * MASS SCRAPING: Scrape hashtag posts using Instagram's public JSON endpoint
-     * 
-     * EXPLANATION: This uses Instagram's public API endpoint that returns JSON data
-     * for hashtag pages. No browser needed, no login required!
-     * 
-     * Step 1: Get post shortcodes from hashtag endpoint
-     * Step 2: Use our GraphQL method to scrape each post's full data
-     */
-    async scrapeByHashtag(hashtag: string, maxResults: number = 12): Promise<ScrapedPost[]> {
-        const tag = hashtag.replace('#', '');
-        
-        try {
-            this.logger.log(`🔍 Fetching hashtag data for: #${tag}`);
-            
-            // Instagram's public hashtag endpoint with magic parameters
-            const url = `https://www.instagram.com/explore/tags/${tag}/?__a=1&__d=dis`;
-            
-            const response = await fetch(url, {
-                headers: {
-                    'User-Agent': this.USER_AGENT,
-                    'X-IG-App-ID': this.X_IG_APP_ID,
-                    'Sec-Fetch-Site': 'same-origin'
-                }
-            });
-
-            if (!response.ok) {
-                this.logger.error(`❌ Instagram returned status: ${response.status}`);
+                const errorText = await response.text();
+                this.logger.error(`Error details: ${errorText.substring(0, 200)}`);
                 return [];
             }
 
-            const json = await response.json();
+            const data = await response.json();
             
-            // Try different possible data structures (Instagram changes these sometimes)
-            const edges = json?.data?.recent?.sections?.[0]?.layout_content?.medias || 
-                         json?.graphql?.hashtag?.edge_hashtag_to_media?.edges || 
-                         [];
+            if (!data || !data.data || !data.data.user) {
+                this.logger.error('❌ Invalid response format from Instagram API');
+                return [];
+            }
+
+            const userData = data.data.user;
+            const edges = userData.edge_owner_to_timeline_media?.edges || [];
             
             if (edges.length === 0) {
-                this.logger.warn('⚠️  No posts found for this hashtag');
+                this.logger.warn(`⚠️  No posts found for @${cleanedUsername}`);
                 return [];
             }
 
-            this.logger.log(`✅ Found ${edges.length} posts, scraping ${Math.min(maxResults, edges.length)}...`);
+            this.logger.log(`📦 Found ${edges.length} posts from @${cleanedUsername}`);
 
-            // Extract shortcodes and scrape each post
-            const scrapedPosts: ScrapedPost[] = [];
-            const postsToScrape = edges.slice(0, maxResults);
+            // Process posts
+            const savedPosts: ScrapedPost[] = [];
+            const postsToProcess = edges.slice(0, maxPosts);
 
-            for (let i = 0; i < postsToScrape.length; i++) {
-                // Handle different data structures
-                const shortcode = postsToScrape[i]?.media?.code || 
-                                 postsToScrape[i]?.node?.shortcode;
+            for (let i = 0; i < postsToProcess.length; i++) {
+                const edge = postsToProcess[i];
+                const node = edge.node;
                 
-                if (!shortcode) {
-                    this.logger.warn(`⚠️  Skipping post ${i + 1} - no shortcode found`);
-                    continue;
-                }
+                try {
+                    const post = new ScrapedPost();
+                    post.platform = Platform.INSTAGRAM;
+                    post.postId = node.shortcode || node.id;
+                    post.authorUsername = cleanedUsername;
+                    post.authorName = userData.full_name || cleanedUsername;
+                    post.content = node.edge_media_to_caption?.edges[0]?.node?.text || '';
+                    post.postUrl = `https://www.instagram.com/p/${node.shortcode}/`;
+                    
+                    // Extract media URLs
+                    const mediaUrls: string[] = [];
+                    if (node.display_url) {
+                        mediaUrls.push(node.display_url);
+                    }
+                    
+                    // Check if it's a carousel (multiple images)
+                    if (node.edge_sidecar_to_children?.edges) {
+                        node.edge_sidecar_to_children.edges.forEach((child: any) => {
+                            if (child.node.display_url) {
+                                mediaUrls.push(child.node.display_url);
+                            }
+                        });
+                    }
+                    
+                    post.mediaUrls = mediaUrls;
+                    post.thumbnailUrl = node.thumbnail_src || node.display_url || '';
+                    post.mediaType = node.is_video ? MediaType.VIDEO : MediaType.IMAGE;
+                    
+                    // Engagement metrics
+                    post.likes = node.edge_liked_by?.count || node.edge_media_preview_like?.count || 0;
+                    post.comments = node.edge_media_to_comment?.count || 0;
+                    post.views = node.video_view_count || 0;
 
-                this.logger.log(`[${i + 1}/${postsToScrape.length}] Scraping: ${shortcode}`);
-                
-                const postUrl = `https://www.instagram.com/p/${shortcode}/`;
-                const post = await this.scrapePost(postUrl);
-                
-                if (post) {
-                    scrapedPosts.push(post);
-                }
-
-                // Rate limiting - wait between requests
-                if (i < postsToScrape.length - 1) {
-                    await this.sleep(this.getRandomDelay());
+                    // Save to database
+                    const savedPost = await this.scrapedPostRepository.save(post);
+                    savedPosts.push(savedPost);
+                    
+                    this.logger.log(`✅ [${i + 1}/${postsToProcess.length}] Scraped post: ${post.postId}`);
+                    
+                    // Human-like delay between processing posts
+                    if (i < postsToProcess.length - 1) {
+                        const delay = this.getRandomDelay(500, 1500);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                    
+                } catch (error) {
+                    this.logger.error(`❌ [${i + 1}/${postsToProcess.length}] Failed to process post: ${error.message}`);
                 }
             }
 
-            this.logger.log(`✅ Successfully scraped ${scrapedPosts.length} posts from #${tag}`);
-            return scrapedPosts;
+            this.logger.log(`✅ Successfully scraped ${savedPosts.length} posts from @${cleanedUsername}`);
+            return savedPosts;
 
         } catch (error) {
-            this.logger.error(`❌ Error scraping hashtag: ${error.message}`);
+            this.logger.error(`❌ Error scraping Instagram profile: ${error.message}`);
             return [];
         }
     }
 
     /**
-     * Scrape multiple posts from an array of URLs
-     * This is useful if you already have a list of post URLs
+     * Scrape posts from multiple Instagram profiles by username
+     * This is the main method called by the frontend with keywords
      */
-    async scrapeMultiplePosts(postUrls: string[]): Promise<ScrapedPost[]> {
-    this.logger.log(`📥 Starting to scrape ${postUrls.length} posts...`);
-    const scrapedPosts: ScrapedPost[] = [];
-
-    for (let i = 0; i < postUrls.length; i++) {
-        this.logger.log(`[${i + 1}/${postUrls.length}] Processing: ${postUrls[i]}`);
+    async scrapeByHashtag(hashtag: string, maxResults: number = 12): Promise<ScrapedPost[]> {
+        // Treat "hashtag" as username(s) - can be comma-separated
+        const usernames = hashtag.split(',').map(u => u.trim()).filter(u => u.length > 0);
         
-        const post = await this.scrapePost(postUrls[i]);
-        if (post) {
-            scrapedPosts.push(post);
-            this.logger.log(`✅ Successfully scraped post ${i + 1}`);
-        } else {
-            this.logger.warn(`⚠️  Failed to scrape post ${i + 1}`);
+        if (usernames.length === 0) {
+            this.logger.warn('⚠️  No usernames provided');
+            return [];
         }
 
-        // Rate limiting - only wait if there are more posts to scrape
-        if (i < postUrls.length - 1) {
-            const delay = this.getRandomDelay();
-            this.logger.log(`⏳ Waiting ${delay}ms before next post...`);
-            await this.sleep(delay);
+        this.logger.log(`📥 Scraping ${usernames.length} Instagram profiles: ${usernames.join(', ')}`);
+        
+        const allPosts: ScrapedPost[] = [];
+        const postsPerProfile = Math.ceil(maxResults / usernames.length);
+        
+        // Scrape each username with human-like delays
+        for (const username of usernames) {
+            const posts = await this.scrapeByUsername(username, postsPerProfile);
+            allPosts.push(...posts);
+            
+            // Human-like delay between profiles (30-60 seconds as recommended)
+            if (usernames.length > 1) {
+                const delay = this.getRandomDelay(30000, 60000);
+                this.logger.log(`⏳ Waiting ${Math.round(delay / 1000)}s before next profile...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
         }
+
+        this.logger.log(`✅ Total posts scraped: ${allPosts.length} from ${usernames.length} profiles`);
+        return allPosts.slice(0, maxResults); // Limit to maxResults
     }
 
-    this.logger.log(`✅ Finished! Successfully scraped ${scrapedPosts.length} out of ${postUrls.length} posts`);
-    return scrapedPosts;
-}
+    /**
+     * Legacy method for backward compatibility
+     */
+    async scrapePost(postUrl: string): Promise<ScrapedPost | null> {
+        this.logger.warn('⚠️  scrapePost() is deprecated. Use scrapeByUsername() instead.');
+        
+        // Try to extract username from URL
+        const usernameMatch = postUrl.match(/instagram\.com\/([^\/\?]+)/);
+        if (usernameMatch && usernameMatch[1]) {
+            const username = usernameMatch[1];
+            const posts = await this.scrapeByUsername(username, 1);
+            return posts.length > 0 ? posts[0] : null;
+        }
+        
+        return null;
+    }
 
     /**
- * Get random delay from config (anti-ban measure)
- */
-private getRandomDelay(): number {
-    // Parse as integers to ensure they're numbers, not strings
-    const min = parseInt(this.configService.get<string>('SCRAPING_DELAY_MIN') || '2000', 10);
-    const max = parseInt(this.configService.get<string>('SCRAPING_DELAY_MAX') || '5000', 10);
-    
-    // Log the values to debug
-    this.logger.debug(`Delay range: ${min}ms - ${max}ms`);
-    
-    const delay = Math.floor(Math.random() * (max - min + 1)) + min;
-    return delay;
-}
-/**
- * Sleep utility
- */
-private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
+     * Scrape multiple profiles - batch processing
+     */
+    async scrapeMultiplePosts(usernames: string[]): Promise<ScrapedPost[]> {
+        this.logger.log(`📥 Starting batch scrape for ${usernames.length} profiles...`);
+        
+        const allPosts: ScrapedPost[] = [];
+        
+        for (const username of usernames) {
+            const posts = await this.scrapeByUsername(username, 12);
+            allPosts.push(...posts);
+            
+            // Human-like delay between profiles
+            if (usernames.length > 1) {
+                const delay = this.getRandomDelay(30000, 60000);
+                this.logger.log(`⏳ Waiting ${Math.round(delay / 1000)}s before next profile...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
 
+        this.logger.log(`✅ Batch scrape complete: ${allPosts.length} total posts`);
+        return allPosts;
+    }
 }
