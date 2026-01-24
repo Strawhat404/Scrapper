@@ -32,8 +32,8 @@ export class TiktokService {
         try {
             this.logger.log(`🎵 Opening TikTok with BrightData proxy for: #${tag}`);
             
-            // Get browser with proxy configuration
-            const browser = await this.sharedBrowser.getBrowser(true); // Always headless for VPS
+            // Get browser with proxy configuration (HEADLESS - no visible browser)
+            const browser = await this.sharedBrowser.getBrowser(true); // Headless mode
             
             // Create context with BrightData proxy
             const proxyConfig = this.brightData.getProxyConfig();
@@ -63,30 +63,74 @@ export class TiktokService {
 
             // Navigate to page
             this.logger.log(`🌐 Navigating to: ${url}`);
-            await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
-            this.logger.log(`✅ Page loaded successfully`);
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            this.logger.log(`✅ Page loaded`);
 
-            // Wait for data
+            // Wait 10 seconds for error message to appear
+            this.logger.log('⏳ Waiting 10 seconds for page to fully load or error...');
+            await this.sleep(10000);
+
+            // Check for refresh button and click it
+            this.logger.log('🔍 Checking for refresh button...');
+            
+            try {
+                const refreshButton = await page.$('button:has-text("Refresh")') || 
+                                     await page.$('button:has-text("refresh")') ||
+                                     await page.$('[data-e2e="refresh-button"]');
+                
+                if (refreshButton) {
+                    this.logger.log('🔄 Refresh button found, clicking...');
+                    await refreshButton.click();
+                    this.logger.log('⏳ Waiting 10 seconds after refresh...');
+                    await this.sleep(10000); // Wait 10 seconds after refresh
+                    this.logger.log('✅ Page refreshed');
+                } else {
+                    this.logger.log('✅ No refresh button needed');
+                }
+            } catch (e) {
+                this.logger.log('✅ No refresh button');
+            }
+
+            // Simulate human behavior AFTER refresh
+            this.logger.log('🤖 Simulating human behavior...');
+            await page.mouse.move(100, 100);
+            await this.sleep(300);
+            await page.mouse.move(250, 350);
+            await this.sleep(500);
+            
+            // Scroll down slowly
+            for (let i = 0; i < 3; i++) {
+                await page.mouse.wheel(0, 400);
+                await this.sleep(1200);
+            }
+            this.logger.log('✅ Human behavior simulated');
+
+            // Wait for data with longer timeout
             this.logger.log('⏳ Waiting for data...');
-            let timeoutSeconds = 60;
+            let timeoutSeconds = 45;
 
             while (!capturedData && timeoutSeconds > 0) {
                 // Check for CAPTCHA
                 const isCaptcha = await page.$('.captcha-disable-scroll') || await page.$('#captcha_container');
                 if (isCaptcha) {
-                    this.logger.warn(`🚨 CAPTCHA DETECTED! BrightData proxy may not be solving it automatically.`);
-                    this.logger.warn(`💡 You may need to upgrade to BrightData Scraping Browser for automatic CAPTCHA solving.`);
-                    await new Promise(r => setTimeout(r, 2000));
+                    this.logger.warn(`🚨 CAPTCHA DETECTED! Waiting...`);
+                    await this.sleep(2000);
                     timeoutSeconds -= 2;
                     continue;
                 }
 
-                await new Promise(r => setTimeout(r, 1000));
+                // If we have data, break immediately
+                if (capturedData) {
+                    this.logger.log('✅ Data captured, processing...');
+                    break;
+                }
+
+                await this.sleep(1000);
                 timeoutSeconds--;
             }
 
             if (!capturedData) {
-                this.logger.error('❌ Failed to capture data after 60 seconds.');
+                this.logger.error('❌ Failed to capture data after 45 seconds.');
                 return [];
             }
 

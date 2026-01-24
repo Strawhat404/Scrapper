@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { PlaywrightCrawler } from '@crawlee/playwright';
 import { ScrapedPost, Platform, MediaType } from '../../database/entities/scraped-post.entity';
 import { SharedBrowserService } from '../shared-browser.service';
 
@@ -27,108 +26,99 @@ export class TwitterService {
 
         // Nitter instances (can rotate these if one is down)
         const nitterInstances = [
-            'https://nitter.net',
-            'https://nitter.cz',
-            'https://nitter.privacydev.net',
+            'https://xcancel.com',              // 🇺🇸 97% uptime, 338ms (BEST)
+            'https://nitter.privacyredirect.com', // 🇫🇮 94% uptime, 1363ms
+            'https://nitter.tiekoetter.com',    // 🇩🇪 37% uptime, 10ms (fast backup)
         ];
         // Pick a random instance to distribute load
         const baseUrl = nitterInstances[Math.floor(Math.random() * nitterInstances.length)];
+
+        let context: any = null;
+        let page: any = null;
 
         try {
             this.logger.log(`🐦 Searching via Nitter (${baseUrl}) for: "${keyword}"`);
 
             // Get shared browser instance
             const browser = await this.sharedBrowser.getBrowser();
-
-            const crawler = new PlaywrightCrawler({
-                launchContext: {
-                    launcher: browser,
-                    useIncognitoPages: true,
-                },
-                maxRequestsPerCrawl: 1,
-                requestHandler: async ({ page }) => {
-                    this.logger.log(`📄 Loading Nitter search page...`);
-
-                    try {
-                        // Wait for timeline items
-                        this.logger.log(`⏳ Waiting for .timeline-item selector...`);
-                        await page.waitForSelector('.timeline-item', { timeout: 10000 });
-                        this.logger.log(`✅ Timeline items found`);
-
-                        // Extract tweet data using Nitter's simple selectors
-                        const tweets = await page.$$eval('.timeline-item', (items, max) => {
-                            return items
-                                .filter(item => !item.classList.contains('show-more')) // Ignore "Load more" buttons
-                                .slice(0, max)
-                                .map((item) => {
-                                    try {
-                                        // Extract Author
-                                        const fullName = item.querySelector('.fullname')?.textContent?.trim() || 'Unknown';
-                                        const username = item.querySelector('.username')?.textContent?.trim() || 'Unknown';
-
-                                        // Extract Content
-                                        const content = item.querySelector('.tweet-content')?.textContent?.trim() || '';
-
-                                        // Extract URL & ID
-                                        const linkElement = item.querySelector('.tweet-link') as HTMLAnchorElement;
-                                        const relativeUrl = linkElement?.getAttribute('href') || '';
-                                        const postUrl = relativeUrl ? `https://twitter.com${relativeUrl.replace('#m', '')}` : '';
-
-                                        // Extract ID from URL (e.g. /user/status/123456)
-                                        // Nitter URL format: /Username/status/1234567890#m
-                                        const postId = relativeUrl.match(/status\/(\d+)/)?.[1] || '';
-
-                                        // Extract Stats
-                                        const stats = item.querySelectorAll('.tweet-stat .icon-container');
-                                        // Usually: [Comments, Retweets, Quotes, Likes]
-                                        const comments = parseInt(stats[0]?.nextSibling?.textContent?.trim().replace(/,/g, '') || '0');
-                                        const likes = parseInt(stats[3]?.nextSibling?.textContent?.trim().replace(/,/g, '') || '0');
-
-                                        return {
-                                            authorName: fullName,
-                                            authorUsername: username,
-                                            content,
-                                            postUrl,
-                                            postId,
-                                            comments,
-                                            likes,
-                                        };
-                                    } catch (err) {
-                                        return null;
-                                    }
-                                })
-                                .filter(Boolean);
-                        }, maxResults);
-
-                        this.logger.log(`✅ Extracted ${tweets.length} tweets from Nitter`);
-
-                        // Convert to ScrapedPost entities
-                        tweets.forEach((tweet: any) => {
-                            const post = new ScrapedPost();
-                            post.platform = Platform.TWITTER;
-                            post.postId = tweet.postId;
-                            post.authorName = tweet.authorName;
-                            post.authorUsername = tweet.authorUsername;
-                            post.content = tweet.content;
-                            post.mediaType = MediaType.TEXT; // Simplification for now
-                            post.mediaUrls = [];
-                            post.postUrl = tweet.postUrl;
-                            post.likes = tweet.likes;
-                            post.views = 0; // Nitter doesn't always show views
-                            post.comments = tweet.comments;
-                            scrapedPosts.push(post);
-                        });
-                    } catch (pageError) {
-                        this.logger.error(`❌ Error extracting tweets from page: ${pageError.message}`);
-                        this.logger.error(`❌ Stack trace: ${pageError.stack}`);
-                        throw pageError;
-                    }
-                },
-            });
+            
+            // Create new context
+            context = await browser.newContext();
+            page = await context.newPage();
 
             // Nitter search URL format
             const searchUrl = `${baseUrl}/search?f=tweets&q=${encodeURIComponent(keyword)}`;
-            await crawler.run([searchUrl]);
+            
+            this.logger.log(`📄 Loading Nitter search page...`);
+            await page.goto(searchUrl, { waitUntil: 'networkidle', timeout: 30000 });
+
+            // Wait for timeline items
+            this.logger.log(`⏳ Waiting for .timeline-item selector...`);
+            await page.waitForSelector('.timeline-item', { timeout: 10000 });
+            this.logger.log(`✅ Timeline items found`);
+
+            // Extract tweet data using Nitter's simple selectors
+            const tweets = await page.$$eval('.timeline-item', (items, max) => {
+                return items
+                    .filter(item => !item.classList.contains('show-more')) // Ignore "Load more" buttons
+                    .slice(0, max)
+                    .map((item) => {
+                        try {
+                            // Extract Author
+                            const fullName = item.querySelector('.fullname')?.textContent?.trim() || 'Unknown';
+                            const username = item.querySelector('.username')?.textContent?.trim() || 'Unknown';
+
+                            // Extract Content
+                            const content = item.querySelector('.tweet-content')?.textContent?.trim() || '';
+
+                            // Extract URL & ID
+                            const linkElement = item.querySelector('.tweet-link') as HTMLAnchorElement;
+                            const relativeUrl = linkElement?.getAttribute('href') || '';
+                            const postUrl = relativeUrl ? `https://twitter.com${relativeUrl.replace('#m', '')}` : '';
+
+                            // Extract ID from URL (e.g. /user/status/123456)
+                            const postId = relativeUrl.match(/status\/(\d+)/)?.[1] || '';
+
+                            // Extract Stats
+                            const stats = item.querySelectorAll('.tweet-stat .icon-container');
+                            // Usually: [Comments, Retweets, Quotes, Likes]
+                            const comments = parseInt(stats[0]?.nextSibling?.textContent?.trim().replace(/,/g, '') || '0');
+                            const likes = parseInt(stats[3]?.nextSibling?.textContent?.trim().replace(/,/g, '') || '0');
+
+                            return {
+                                authorName: fullName,
+                                authorUsername: username,
+                                content,
+                                postUrl,
+                                postId,
+                                comments,
+                                likes,
+                            };
+                        } catch (err) {
+                            return null;
+                        }
+                    })
+                    .filter(Boolean);
+            }, maxResults);
+
+            this.logger.log(`✅ Extracted ${tweets.length} tweets from Nitter`);
+
+            // Convert to ScrapedPost entities
+            tweets.forEach((tweet: any) => {
+                const post = new ScrapedPost();
+                post.platform = Platform.TWITTER;
+                post.postId = tweet.postId;
+                post.authorName = tweet.authorName;
+                post.authorUsername = tweet.authorUsername;
+                post.content = tweet.content;
+                post.mediaType = MediaType.TEXT;
+                post.mediaUrls = [];
+                post.postUrl = tweet.postUrl;
+                post.likes = tweet.likes;
+                post.views = 0;
+                post.comments = tweet.comments;
+                scrapedPosts.push(post);
+            });
 
             if (scrapedPosts.length > 0) {
                 const savedPosts = await this.scrapedPostRepository.save(scrapedPosts);
@@ -143,7 +133,17 @@ export class TwitterService {
             this.logger.error(`❌ Nitter scraping error: ${error.message}`);
             this.logger.error(`❌ Stack trace: ${error.stack}`);
             this.logger.error(`💡 Possible reasons: Nitter instance down, network issue, or selector changes`);
-            return []; // Return empty array instead of crashing
+            return [];
+        } finally {
+            if (context) {
+                this.logger.log('🧹 Closing Twitter context...');
+                try {
+                    await context.close();
+                    this.logger.log('✅ Twitter context closed');
+                } catch (closeError) {
+                    this.logger.error(`⚠️ Error closing context: ${closeError.message}`);
+                }
+            }
         }
     }
 
